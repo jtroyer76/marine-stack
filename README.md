@@ -44,7 +44,7 @@ docker compose version
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/yourname/marine-stack.git
+git clone https://github.com/jtroyer76/marine-stack.git
 cd marine-stack
 ```
 
