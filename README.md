@@ -1,4 +1,4 @@
-# Marine Stack: SignalK + Grafana + InfluxDB (Docker Compose)
+# Marine Stack: SignalK + Grafana + InfluxDB
 
 A self-hosted marine data system using Docker Compose. This stack includes SignalK for marine/NMEA data collection, InfluxDB for time-series storage, and Grafana for real-time dashboards. Designed for use on boats, Raspberry Pi, NUCs, or other Linux servers.
 
