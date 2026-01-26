@@ -1,34 +1,82 @@
-version: "3.8"
-
 services:
+  # Fails fast if RAID isn't mounted
+  # Optional: Remove this service AND the depends_on blocks below
+  # if not using a dedicated mount point
+  mount-check:
+    image: busybox:1.36
+    container_name: mount-check
+    command: sh -c 'mountpoint -q /data || (echo "RAID not mounted!" && exit 1)'
+    volumes:
+      - ${MARINE_DATA}:/data:ro
+    restart: "no"
+
   signalk:
-    image: signalk/signalk-server:latest
+    image: signalk/signalk-server:${SIGNALK_VERSION}
     container_name: signalk
     restart: unless-stopped
     ports:
-      - "80:3000"  # SignalK Web UI
+      - "80:3000"
     volumes:
       - ${MARINE_DATA}/signalk:/home/node/.signalk
     environment:
       - NODE_ENV=production
-    privileged: true
+
+    # Device passthrough for NMEA interfaces
+    #
+    # TIP: Use udev rules for stable device names instead of /dev/ttyUSB0
+    # which can change on reboot or when moving cables.
+    #
+    # 1. Find device attributes:
+    #    udevadm info -a -n /dev/ttyUSB0 | grep -E 'serial|idVendor|idProduct'
+    #
+    # 2. Create /etc/udev/rules.d/99-marine.rules:
+    #    SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{serial}=="ABC123", SYMLINK+="ttyNGT1"
+    #
+    # 3. Reload: sudo udevadm control --reload-rules && sudo udevadm trigger
+    #
+    # devices:
+    #   - /dev/ttyNGT1:/dev/ttyNGT1       # NMEA2000 gateway
+    #   - /dev/ttyNMEA0183:/dev/ttyNMEA0183   # NMEA0183 serial
+    #   - /dev/can0:/dev/can0             # SocketCAN interface
+
+    mem_limit: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
 
   influxdb:
-    image: influxdb:1.8
+    image: influxdb:${INFLUXDB_VERSION}
     container_name: influxdb
     restart: unless-stopped
     ports:
       - "8086:8086"
     volumes:
-      - ${MARINE_DATA}/influx:/var/lib/influxdb
+      - ${MARINE_DATA}/influx:/var/lib/influxdb2
     environment:
-      - INFLUXDB_DB=signalk
-      - INFLUXDB_ADMIN_USER=admin
-      - INFLUXDB_ADMIN_PASSWORD=changeme
-      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN}
+    mem_limit: 1g
+    stop_grace_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:${GRAFANA_VERSION}
     container_name: grafana
     restart: unless-stopped
     ports:
@@ -36,5 +84,14 @@ services:
     volumes:
       - ${MARINE_DATA}/grafana:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=changeme
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    mem_limit: 256m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
