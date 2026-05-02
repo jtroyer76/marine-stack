@@ -39,7 +39,6 @@ services:
     #   - /dev/ttyNMEA0183:/dev/ttyNMEA0183   # NMEA0183 serial
     #   - /dev/can0:/dev/can0             # SocketCAN interface
 
-    mem_limit: 512m
     logging:
       driver: "json-file"
       options:
@@ -64,7 +63,6 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN}
-    mem_limit: 1g
     stop_grace_period: 60s
     logging:
       driver: "json-file"
@@ -86,7 +84,37 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-    mem_limit: 256m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+
+  jellyfin:
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "8096:8096"        # HTTP
+      - "8920:8920"        # HTTPS (optional)
+      - "7359:7359/udp"    # client auto-discovery
+      - "1900:1900/udp"    # DLNA
+    volumes:
+      - ${MARINE_DATA}/jellyfin/config:/config
+      - ${MARINE_DATA}/jellyfin/cache:/cache
+      - ${MARINE_MEDIA}/movies:/media/movies:ro
+      - ${MARINE_MEDIA}/shows:/media/shows:ro
+      - ${MARINE_MEDIA}/music:/media/music:ro
+    environment:
+      - TZ=${TZ:-America/Vancouver}
+    # Hardware transcoding on Pi 4/5 — uncomment after we confirm model:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # group_add:
+    #   - "44"   # video group on Debian
     logging:
       driver: "json-file"
       options:
