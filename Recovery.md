@@ -149,7 +149,7 @@ SignalK runs on the host, not in Docker. Its config (settings, plugins, security
 2. mDNS deps, Node 24, `sudo npm install -g signalk-server@<version> --allow-scripts=@canboat/canboatjs` (steps 4–6; use the version you were running, so the config format matches)
 3. `sudo apt-get install -y python3-venv`, then rebuild Python plugin venvs for the new OS's Python with the plugin's own command (`cd /mnt/storage/docker/signalk/node_modules/signalk-victron-ble && rm -rf ve && python3 -m venv ve && ve/bin/python -m pip install wheel && ve/bin/python -m pip install -U -r requirements.txt`)
 4. systemd units (step 11), then start
-5. "After the move": avahi `allow-interfaces`, `festival` and `~/.asoundrc` for alert audio
+5. "After the move": avahi `allow-interfaces`, audio packages (`alsa-utils mpg321 festival festvox-kallpc16k`) and `~/.asoundrc` for alerts
 
 ## 7. Configure Samba
 

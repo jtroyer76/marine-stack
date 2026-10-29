@@ -75,13 +75,13 @@ Same SignalK version and same Node major as the container, same config directory
     WantedBy=sockets.target
     ```
     Then `sudo systemctl daemon-reload && sudo systemctl enable signalk.service signalk.socket && sudo systemctl start signalk.socket signalk.service`. Logs: `journalctl -u signalk`.
-12. **Verify:** server info at `http://<host>/signalk`, every source updating in the Data Browser, no plugin errors, Grafana receiving new points, `avahi-browse -rt _signalk-http._tcp` shows port 80. Reboot once to prove it comes back on its own.
+12. **Verify:** server info at `http://<host>/signalk`, every source updating in the Data Browser, no plugin errors, Grafana receiving new points, `avahi-browse -rt _signalk-http._tcp` shows port 80. NMEA 0183 over TCP (port 10110) is served directly; the container published it with a port mapping. Reboot once to prove it comes back on its own.
 
 ## After the move
 
 - **Source priorities.** Without priorities, whichever source reports first after a restart wins a path. A GPS with a week-rollover bug (dates in 2007) can win `navigation.datetime`, and plugins that use the date go wrong (tide predictions for the wrong year). Set priorities for `navigation.datetime` and `navigation.position` on the admin UI's Source Priorities page.
 - **mDNS on Docker hosts.** avahi advertises on every Docker bridge and veth interface by default. Limit it to the real network in `/etc/avahi/avahi-daemon.conf` with `allow-interfaces=wlan0,eth0` (check the names with `ip -br link`), then restart `avahi-daemon` and `signalk`.
-- **Audio for `signalk-notification-player`.** The container had no sound devices; natively the plugin needs `festival` (`sudo apt-get install -y festival`). To play on a USB speaker rather than the Pi's headphone jack, set the default ALSA device for the service user in `~/.asoundrc`, by card name so it survives renumbering (names from `aplay -l`):
+- **Audio for `signalk-notification-player`.** The container got its audio tools from `signalk/Dockerfile`; natively install the same: `sudo apt-get install -y alsa-utils mpg321 festival festvox-kallpc16k`. To play on a USB speaker rather than the Pi's headphone jack, set the default ALSA device for the service user in `~/.asoundrc` (the container mounted `signalk/asoundrc`, which picks the card by number). By card name survives renumbering (names from `aplay -l`):
   ```
   pcm.!default { type plug slave.pcm "hw:CARD=<card name>" }
   ctl.!default { type hw card <card name> }
@@ -94,7 +94,7 @@ Same SignalK version and same Node major as the container, same config directory
 
 ## Rollback
 
-`sudo systemctl disable --now signalk.socket signalk.service`, put the InfluxDB URL back to `http://influxdb:8086`, restore the venv (`rm -rf ve && mv ve.docker ve`), then `docker compose --profile signalk-docker up -d signalk`. Restore the config tarball if the native server changed anything else.
+`sudo systemctl disable --now signalk.socket signalk.service`, put the InfluxDB URL back to `http://influxdb:8086`, restore the venv (`rm -rf ve && mv ve.docker ve`), then `docker compose --profile signalk-docker up -d --build signalk` (builds the image with the audio tools). Restore the config tarball if the native server changed anything else.
 
 ## SocketCAN
 

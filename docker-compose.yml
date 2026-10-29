@@ -16,14 +16,20 @@ services:
   #   docker compose --profile signalk-docker up -d signalk
   signalk:
     profiles: ["signalk-docker"]
-    image: signalk/signalk-server:${SIGNALK_VERSION}
+    # Stock image plus audio tools for signalk-notification-player (signalk/Dockerfile)
+    build:
+      context: ./signalk
+      args:
+        - SIGNALK_VERSION=${SIGNALK_VERSION}
     container_name: signalk
     restart: unless-stopped
     ports:
       - "80:3000"
+      - "10110:10110"     # NMEA 0183 over TCP
     volumes:
       - ${MARINE_DATA}/signalk:/home/node/.signalk
       - /var/run/dbus:/var/run/dbus
+      - ./signalk/asoundrc:/home/node/.asoundrc:ro
     environment:
       - NODE_ENV=production
 
@@ -49,6 +55,9 @@ services:
       - /dev/ttyNGT1:/dev/ttyNGT1
       - /dev/ttyGPS:/dev/ttyGPS
       - /dev/ttyAIS:/dev/ttyAIS
+      - /dev/snd:/dev/snd
+    group_add:
+      - "audio"
 
     logging:
       driver: "json-file"
