@@ -1,0 +1,3 @@
+# Default ALSA card for the container (card number from `aplay -l` on the host)
+defaults.pcm.card 1
+defaults.ctl.card 1
