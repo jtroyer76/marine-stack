@@ -7,7 +7,8 @@ If your boot SSD dies or you need to replace the Pi, follow these steps. Your da
 - Raspberry Pi 4 in Argon M.2 case
 - 128GB Transcend M.2 boot SSD (sdc)
 - 2x 2TB Crucial BX500 in RAID1 (md127)
-- Docker stack: SignalK, InfluxDB, Grafana
+- SignalK running natively (systemd), config on the RAID
+- Docker stack: InfluxDB, Grafana, Jellyfin
 
 ## 1. Flash Raspberry Pi OS
 
@@ -140,6 +141,16 @@ docker ps
 
 All your data (SignalK config, InfluxDB history, Grafana dashboards) is on the RAID and will be there.
 
+## 6b. Install SignalK
+
+SignalK runs on the host, not in Docker. Its config (settings, plugins, security) is already on the RAID at `/mnt/storage/docker/signalk`; this only reinstalls the server and the host setup around it. Follow [docs/native-signalk.md](docs/native-signalk.md):
+
+1. udev rule for the serial devices (step 3)
+2. mDNS deps, Node 24, `sudo npm install -g signalk-server@<version> --allow-scripts=@canboat/canboatjs` (steps 4–6; use the version you were running, so the config format matches)
+3. `sudo apt-get install -y python3-venv`, then rebuild Python plugin venvs for the new OS's Python with the plugin's own command (`cd /mnt/storage/docker/signalk/node_modules/signalk-victron-ble && rm -rf ve && python3 -m venv ve && ve/bin/python -m pip install wheel && ve/bin/python -m pip install -U -r requirements.txt`)
+4. systemd units (step 11), then start
+5. "After the move": avahi `allow-interfaces`, `festival` and `~/.asoundrc` for alert audio
+
 ## 7. Configure Samba
 
 ```bash
@@ -196,17 +207,28 @@ sudo mdadm --detail /dev/md127
 docker ps
 
 # Logs
-docker logs signalk
 docker logs influxdb
 docker logs grafana
 
 # Upgrade one container
-docker compose pull signalk
-docker compose up -d signalk
+docker compose pull grafana
+docker compose up -d grafana
 
 # Restart everything
 docker compose down
 docker compose up -d
+```
+
+### SignalK
+
+```bash
+systemctl status signalk --no-pager
+journalctl -u signalk -n 100 --no-pager
+sudo systemctl restart signalk
+
+# Upgrade
+sudo npm install -g signalk-server@<new> --allow-scripts=@canboat/canboatjs
+sudo systemctl restart signalk
 ```
 
 ### RAID Check Control
@@ -235,6 +257,7 @@ du -sh /mnt/storage/*
 
 - `.env`: `/mnt/storage/backup/marine-stack.env`
 - SignalK config: `/mnt/storage/docker/signalk`
+- SignalK host setup (not on the RAID — recreate from docs/native-signalk.md): `/etc/systemd/system/signalk.service`, `/etc/systemd/system/signalk.socket`, `/etc/udev/rules.d/99-marine.rules`, `~/.asoundrc`, `allow-interfaces` in `/etc/avahi/avahi-daemon.conf`
 - InfluxDB data: `/mnt/storage/docker/influx`
 - Grafana dashboards: `/mnt/storage/docker/grafana`
 - Media: `/mnt/storage/media`

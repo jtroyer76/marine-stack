@@ -10,7 +10,12 @@ services:
       - ${MARINE_DATA}:/data:ro
     restart: "no"
 
+  # SignalK runs natively on the host (systemd) — see docs/native-signalk.md.
+  # This container is kept as a rollback only and does not start with
+  # `docker compose up -d`. To use it, stop the native server first, then:
+  #   docker compose --profile signalk-docker up -d signalk
   signalk:
+    profiles: ["signalk-docker"]
     image: signalk/signalk-server:${SIGNALK_VERSION}
     container_name: signalk
     restart: unless-stopped
@@ -39,10 +44,11 @@ services:
     #   - /dev/ttyNGT1:/dev/ttyNGT1       # NMEA2000 gateway
     #   - /dev/ttyNMEA0183:/dev/ttyNMEA0183   # NMEA0183 serial
     #   - /dev/can0:/dev/can0             # SocketCAN interface
+    # Host names come from the udev rule in docs/native-signalk.md
     devices:
-      - /dev/serial/by-id/usb-Hades2001_M5stack_6D52E4FE00-if00-port0:/dev/ttyNGT1
-      - /dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_COCEb115819-if00-port0:/dev/ttyGPS
-      - /dev/serial/by-id/usb-VesperMarine_Vesper_Marine_AIS_VESPERMARINE-if00-port0:/dev/ttyAIS
+      - /dev/ttyNGT1:/dev/ttyNGT1
+      - /dev/ttyGPS:/dev/ttyGPS
+      - /dev/ttyAIS:/dev/ttyAIS
 
     logging:
       driver: "json-file"

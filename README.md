@@ -12,6 +12,8 @@ A self-hosted marine data system using Docker Compose. This stack includes Signa
 | Grafana   | 3000 | Dashboard and data visualization     |
 | InfluxDB  | 8086 | Time-series database backend         |
 
+SignalK is best run natively on the host, where it gets serial ports, Bluetooth, SocketCAN and mDNS without passthrough: see [docs/native-signalk.md](docs/native-signalk.md). The Docker `signalk` service is optional and only starts with its profile: `docker compose --profile signalk-docker up -d`.
+
 ---
 
 ## 🚀 Quick Start
